@@ -8,6 +8,8 @@ const_value_reload = 1
 
 const_value_not_reload = 1
 
+const_value_new = 1
+
 
 def func_ret():
     return 1

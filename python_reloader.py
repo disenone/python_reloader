@@ -9,7 +9,6 @@ class MetaFinder:
     def __init__(self, reloader):
         self._reloader = reloader
 
-
     def find_spec(self, fullname, path, target=None):
         # find source file
         finder = importlib.machinery.PathFinder()
@@ -19,18 +18,17 @@ class MetaFinder:
 
         old_module = self._reloader.GetOldModule(fullname)
         if old_module:
-            # save old
-
             # run new code in old module dict
             code = spec.loader.get_code(fullname)
             exec(code, old_module.__dict__)
             module = old_module
         else:
+            # if old module not exists, just create a new one
             module = import_util.module_from_spec(spec)
             spec.loader.exec_module(module)
 
         try:
-            self._reloader.UpdateModule(module)
+            self._reloader.ReloadModule(module)
         except:
             sys.excepthook(*sys.exc_info())
 
@@ -52,7 +50,7 @@ class MetaLoader:
 
 class Reloader:
 
-    IGNORE_ATTRS = {"__module__", "__dict__", "__weakref__"}
+    IGNORE_ATTRS = {"__module__", "__dict__", "__weakref__", "__loader__"}
 
     def __init__(self):
         self._old_module_infos = {}
@@ -81,7 +79,10 @@ class Reloader:
 
         module = sys.modules[module_name]
         module_file = module.__file__
-        if module_file.startswith('/usr') or 'python3/lib' in module_file or 'Python312' in module_file or __file__ == module_file:
+        if module_file.startswith('/usr') \
+                or 'python3/lib' in module_file \
+                or 'Python312' in module_file \
+                or __file__ == module_file:
             # ignore python modules
             # add you python lib path
             return False
@@ -115,16 +116,18 @@ class Reloader:
         if data_name in ('__dict__', ):
             return False
 
-        return getattr(module, '_reload_all_data', None) or dict_info.get('_reload_all_data', False) or data_name in dict_info.get('_reload_data', ())
+        return getattr(module, '_reload_all_data', None) \
+            or dict_info.get('_reload_all_data', False) \
+            or data_name in dict_info.get('_reload_data', ())
 
-    def UpdateModule(self, module):
+    def ReloadModule(self, module):
         old_module_info = self._old_module_infos.get(module.__name__)
         if not old_module_info:
             return
 
-        self.UpdateDict(module, old_module_info, module.__dict__)
+        self.ReloadDict(module, old_module_info, module.__dict__)
 
-    def UpdateDict(self, module, old_dict, new_dict, _reload_all_data=False, _del_func=False):
+    def ReloadDict(self, module, old_dict, new_dict, _reload_all_data=False, _del_func=False):
         dels = []
 
         for attr_name, old_attr in old_dict.items():
@@ -188,7 +191,7 @@ class Reloader:
             setattr(old_func, keys, getattr(new_func, keys))
 
         # __dict__
-        self.UpdateDict(module, old_func.__dict__, new_func.__dict__, _reload_all_data=True)
+        self.ReloadDict(module, old_func.__dict__, new_func.__dict__, _reload_all_data=True)
 
         # __defaults__
         old_func.__defaults__ = new_func.__defaults__
@@ -198,13 +201,16 @@ class Reloader:
         # __kwdefaults__
         old_func.__kwdefaults__ = new_func.__kwdefaults__
         if old_func.__kwdefaults__:
-            old_func.__kwdefaults__ = {key: self.ReloadObject(module, obj) for key, obj in old_func.__kwdefaults__.items()}
+            old_func.__kwdefaults__ = {
+                key: self.ReloadObject(module, obj) for key, obj in old_func.__kwdefaults__.items()
+            }
 
         # __closure__
         if old_closure_num:
             for index, old_cell in enumerate(old_closure):
                 new_cell_contents = new_closure[index].cell_contents
-                old_cell.cell_contents = self.ReloadObject(module, new_cell_contents, old_cell.cell_contents, recursion_set=recursion_set)
+                old_cell.cell_contents = self.ReloadObject(
+                    module, new_cell_contents, old_cell.cell_contents, recursion_set=recursion_set)
 
         return old_func
 
@@ -235,7 +241,8 @@ class Reloader:
             return old_class
 
         old_class_dict = ClassDict(old_class)
-        self.UpdateDict(module, old_class_dict, ClassDict(new_class), _del_func=new_class.__dict__.get('_del_func', False))
+        self.ReloadDict(
+            module, old_class_dict, ClassDict(new_class), _del_func=new_class.__dict__.get('_del_func', False))
 
         # copy class __dict__
         new_class_dict = new_class.__dict__

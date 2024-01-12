@@ -2,7 +2,14 @@
 Hot reload data and function of Python3 scripts.
 
 ## support version
-support Python3.7+，test on Python3.12.0
+support Python-3.7+，tested on Python-3.12.0
+
+## usage
+
+```python
+import reload
+reload.Reload(module_names)
+```
 
 ## test
 

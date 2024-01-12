@@ -2,6 +2,7 @@
 
 import unittest
 
+
 class TestReload(unittest.TestCase):
 
     @classmethod
@@ -19,13 +20,13 @@ class TestReload(unittest.TestCase):
 
         cls.cleanup()
         shutil.copy2('reload_me_before.py', 'reload_me.py')
-        shutil.copy2(os.path.join('..', 'reload.py'), 'reload.py')
+        shutil.copy2(os.path.join('..', 'python_reloader.py'), 'python_reloader.py')
 
     @classmethod
     def cleanup(cls):
         import os
 
-        for file_name in ('reload.py', 'reload_me.py'):
+        for file_name in ('python_reloader.py', 'reload_me.py'):
             if os.path.exists(file_name):
                 os.remove(file_name)
 
@@ -55,6 +56,7 @@ class TestReload(unittest.TestCase):
 
         self.assertEqual(reload_me.const_value_not_reload, 0)
         self.assertEqual(reload_me.const_value_reload, 1)
+        self.assertEqual(reload_me.const_value_new, 1)
         self.assertEqual(reload_me.func_ret(), 1)
         self.assertEqual(reload_me.func_wrapped(), (1, 1, 1))
         self.assertEqual(reload_me.AClass.const_value_not_reload, 0)
@@ -67,11 +69,11 @@ class TestReload(unittest.TestCase):
     def do_reload(self):
         import os
         import shutil
-        import reload
+        import python_reloader
 
         os.remove('reload_me.py')
         shutil.copy2('reload_me_after.py', 'reload_me.py')
-        reload.Reload(['reload_me'])
+        python_reloader.Reload(['reload_me'])
 
     def GetIds(self, object_dict):
         import inspect
@@ -94,6 +96,7 @@ class TestReload(unittest.TestCase):
                 self.assertEqual(info, new_ids[name], 'class [%s] not the same' % name)
                 dict_name = name + '.__dict__'
                 self.CheckIds(old_ids[dict_name], new_ids[dict_name])
+
 
 if __name__ == '__main__':
     unittest.main()
